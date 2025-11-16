@@ -13,5 +13,8 @@ func NewRouter() *http.ServeMux {
 	// Health check endpoint
 	mux.Handle("/healthz", NewHealthHandler())
 
+	// Kanban status update endpoint
+	mux.Handle("/kanban/status", NewKanbanHandler())
+
 	return mux
 }
