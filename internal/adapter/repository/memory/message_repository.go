@@ -3,10 +3,10 @@ package memory
 import (
 	"context"
 	"errors"
+	"fmt"
 	"line-to-kanban-be/internal/domain/message"
 	"sync"
-
-	"github.com/google/uuid"
+	"time"
 )
 
 type MessageRepository struct {
@@ -25,7 +25,7 @@ func (r *MessageRepository) Save(ctx context.Context, msg *message.Message) erro
 	defer r.mu.Unlock()
 
 	if msg.ID == "" {
-		msg.ID = uuid.New().String()
+		msg.ID = fmt.Sprintf("%d", time.Now().UnixNano())
 	}
 
 	r.messages[msg.ID] = msg
