@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	appMessage "line-to-kanban-be/internal/app/message"
 	httpAdapter "line-to-kanban-be/internal/adapter/http"
-	"line-to-kanban-be/internal/adapter/repository/memory"
 	"line-to-kanban-be/internal/platform/config"
 	"line-to-kanban-be/internal/platform/logger"
 )
@@ -16,12 +14,8 @@ func main() {
 	cfg := config.Load()
 	log := logger.New()
 
-	// 依存性の注入
-	messageRepo := memory.NewMessageRepository()
-	messageUsecase := appMessage.NewUsecase(messageRepo)
-
 	// ルーターの作成
-	router := httpAdapter.NewRouter(messageUsecase)
+	router := httpAdapter.NewRouter()
 
 	// サーバー起動
 	addr := fmt.Sprintf(":%s", cfg.Port)
