@@ -10,5 +10,8 @@ func NewRouter() *http.ServeMux {
 	// Hello World endpoint
 	mux.Handle("/", NewHelloHandler())
 
+	// Health check endpoint
+	mux.Handle("/healthz", NewHealthHandler())
+
 	return mux
 }
