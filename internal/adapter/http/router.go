@@ -1,10 +1,11 @@
 package http
 
 import (
+	"line-to-kanban-be/internal/adapter/line"
 	"net/http"
 )
 
-func NewRouter() *http.ServeMux {
+func NewRouter(lineWebhookHandler *line.WebhookHandler) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Hello World endpoint
@@ -12,6 +13,9 @@ func NewRouter() *http.ServeMux {
 
 	// Health check endpoint
 	mux.Handle("/healthz", NewHealthHandler())
+
+	// LINE Webhook endpoint
+	mux.Handle("/line/webhook", NewLineWebhookHandler(lineWebhookHandler))
 
 	// Kanban status update endpoint
 	mux.Handle("/kanban/status", NewKanbanHandler())
