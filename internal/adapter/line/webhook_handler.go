@@ -43,8 +43,20 @@ func (h *WebhookHandler) Handle(w http.ResponseWriter, req *http.Request) {
 				// テキストメッセージの内容をログに出力
 				log.Printf("【メッセージ検出】ユーザー: %s, 内容: %s", userID, message.Text)
 
+				// ユーザープロフィール取得
+				profile, err := h.client.GetBot().GetProfile(userID).Do()
+				if err != nil {
+					log.Printf("プロフィール取得エラー: %v", err)
+					// エラー時はユーザー名なしで返信
+					replyMessage := "こんにちは!" + message.Text
+					if _, err := h.client.GetBot().ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
+						log.Printf("返信エラー: %v", err)
+					}
+					return
+				}
+
 				// ユーザーに返信
-				replyMessage := "こんにちは," + message.Text
+				replyMessage := "こんにちは！" + profile.DisplayName + "さん," + message.Text
 				if _, err := h.client.GetBot().ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
 					log.Printf("返信エラー: %v", err)
 				}
