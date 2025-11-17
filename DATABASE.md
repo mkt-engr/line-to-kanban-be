@@ -106,10 +106,38 @@ sql:
 
 この設定により、sqlc が生成するコードが pgx/v5 を使用するようになります。
 
-メリット:
-- sqlc のタイプセーフな API
-- pgx の高速なパフォーマンス
-- PostgreSQL の機能をフルに活用
+### pgx + sqlc の利点
+
+1. 型安全性
+
+コンパイル時にエラーを検出できます：
+
+```go
+// ✅ コンパイル時にエラー検出
+tenant, err := queries.GetTenant(ctx, tenantID)
+
+// ❌ ORMだと実行時エラーの可能性
+db.Where("tenant_id = ?", tenantID).First(&tenant)
+```
+
+2. SQLの透明性
+
+- 実行されるSQLが明確
+- デバッグしやすい
+- パフォーマンスチューニングしやすい
+
+3. PostgreSQL最適化
+
+- pgxの高速性（`database/sql`の約2倍）
+- PostgreSQL特有の型・機能をフル活用（JSON、配列、UUID等）
+- プリペアドステートメントの最適化
+
+4. シンプル
+
+- ORMのマジック不要
+- 学習コストが低い（SQLを書くだけ）
+- 生成コードが読みやすい
+- 予測可能な動作
 
 ---
 
