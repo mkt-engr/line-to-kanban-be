@@ -14,8 +14,8 @@ func NewRouter(lineWebhookHandler *line.WebhookHandler) *http.ServeMux {
 	// Health check endpoint
 	mux.Handle("/healthz", NewHealthHandler())
 
-	// LINE Webhook endpoint
-	mux.Handle("/line/webhook", NewLineWebhookHandler(lineWebhookHandler))
+	// Webhook endpoints
+	mux.Handle("/webhook/line", NewLineWebhookHandler(lineWebhookHandler))
 
 	// Kanban status update endpoint
 	mux.Handle("/kanban/status", NewKanbanHandler())
