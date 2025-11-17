@@ -43,6 +43,12 @@ func (h *WebhookHandler) Handle(w http.ResponseWriter, req *http.Request) {
 				// テキストメッセージの内容をログに出力
 				log.Printf("【メッセージ検出】ユーザー: %s, 内容: %s", userID, message.Text)
 
+				// ユーザーに返信
+				replyMessage := "こんにちは " + message.Text
+				if _, err := h.client.GetBot().ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
+					log.Printf("返信エラー: %v", err)
+				}
+
 			default:
 				// テキスト以外のメッセージ（スタンプ、画像など）は無視
 				log.Printf("未対応のメッセージタイプ: %T", message)
