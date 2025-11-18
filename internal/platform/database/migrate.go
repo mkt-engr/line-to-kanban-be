@@ -11,7 +11,9 @@ import (
 
 // RunMigrations はマイグレーションを実行します
 func RunMigrations(db *sql.DB, migrationsPath string) error {
-	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	driver, err := postgres.WithInstance(db, &postgres.Config{
+		MigrationsTable: "schema_migrations",
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create migrate driver: %w", err)
 	}
