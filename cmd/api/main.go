@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/joho/godotenv"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	httpAdapter "line-to-kanban-be/internal/adapter/http"
 	lineAdapter "line-to-kanban-be/internal/adapter/line"
+	"line-to-kanban-be/internal/adapter/repository/db"
 	"line-to-kanban-be/internal/platform/config"
 	"line-to-kanban-be/internal/platform/logger"
 )
@@ -20,6 +23,7 @@ func main() {
 	// 設定とロガーの初期化
 	cfg := config.Load()
 	lineConfig := config.LoadLineConfig()
+	dbConfig := config.LoadDatabaseConfig()
 	appLogger := logger.New()
 
 	// LINE Botクライアントの初期化（環境変数が必須）
@@ -31,8 +35,32 @@ func main() {
 	if err != nil {
 		log.Fatalf("LINE Botクライアントの初期化に失敗しました: %v", err)
 	}
-	lineWebhookHandler := lineAdapter.NewWebhookHandler(lineClient)
 	appLogger.Info("LINE Bot client initialized successfully")
+
+	// データベース接続の初期化 (pgxpool使用)
+	if dbConfig.URL == "" {
+		log.Fatal("Database URL is required. Please set DATABASE_URL environment variable.")
+	}
+
+	ctx := context.Background()
+	dbPool, err := pgxpool.New(ctx, dbConfig.URL)
+	if err != nil {
+		log.Fatalf("データベース接続プールの作成に失敗しました: %v", err)
+	}
+	defer dbPool.Close()
+
+	// データベース接続テスト
+	if err := dbPool.Ping(ctx); err != nil {
+		log.Fatalf("データベースへのPingに失敗しました: %v", err)
+	}
+	appLogger.Info("Database connection established successfully")
+
+	// sqlcで生成されたQueriesの初期化
+	queries := db.New(dbPool)
+
+	// LINE Webhookハンドラーの初期化
+	lineWebhookHandler := lineAdapter.NewWebhookHandler(lineClient, queries)
+	appLogger.Info("Webhook handler initialized successfully")
 
 	// ルーターの作成
 	router := httpAdapter.NewRouter(lineWebhookHandler)

@@ -1,19 +1,24 @@
 package line
 
 import (
+	"context"
 	"log"
 	"net/http"
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
+
+	"line-to-kanban-be/internal/adapter/repository/db"
 )
 
 type WebhookHandler struct {
-	client *Client
+	client  *Client
+	queries db.Querier
 }
 
-func NewWebhookHandler(client *Client) *WebhookHandler {
+func NewWebhookHandler(client *Client, queries db.Querier) *WebhookHandler {
 	return &WebhookHandler{
-		client: client,
+		client:  client,
+		queries: queries,
 	}
 }
 
@@ -38,17 +43,30 @@ func (h *WebhookHandler) Handle(w http.ResponseWriter, req *http.Request) {
 
 		// メッセージイベントのみを対象とする
 		if event.Type == linebot.EventTypeMessage {
-			switch message := event.Message.(type) {
+			switch lineMessage := event.Message.(type) {
 			case *linebot.TextMessage:
 				// テキストメッセージの内容をログに出力
-				log.Printf("【メッセージ検出】ユーザー: %s, 内容: %s", userID, message.Text)
+				log.Printf("【メッセージ検出】ユーザー: %s, 内容: %s", userID, lineMessage.Text)
+
+				// メッセージをデータベースに保存 (sqlc使用)
+				ctx := context.Background()
+				savedMsg, err := h.queries.CreateMessage(ctx, db.CreateMessageParams{
+					Content: lineMessage.Text,
+					Status:  db.MessageStatusTodo,
+				})
+				if err != nil {
+					log.Printf("メッセージ保存エラー: %v", err)
+					// 保存に失敗してもユーザーには返信を続ける
+				} else {
+					log.Printf("メッセージを保存しました: ID=%v", savedMsg.ID)
+				}
 
 				// ユーザープロフィール取得
 				profile, err := h.client.GetBot().GetProfile(userID).Do()
 				if err != nil {
 					log.Printf("プロフィール取得エラー: %v", err)
 					// エラー時はユーザー名なしで返信
-					replyMessage := "こんにちは!" + message.Text
+					replyMessage := "こんにちは!" + lineMessage.Text
 					if _, err := h.client.GetBot().ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
 						log.Printf("返信エラー: %v", err)
 					}
@@ -56,14 +74,14 @@ func (h *WebhookHandler) Handle(w http.ResponseWriter, req *http.Request) {
 				}
 
 				// ユーザーに返信
-				replyMessage := "こんにちは！" + profile.DisplayName + "さん," + message.Text
+				replyMessage := "こんにちは！" + profile.DisplayName + "さん," + lineMessage.Text
 				if _, err := h.client.GetBot().ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
 					log.Printf("返信エラー: %v", err)
 				}
 
 			default:
 				// テキスト以外のメッセージ（スタンプ、画像など）は無視
-				log.Printf("未対応のメッセージタイプ: %T", message)
+				log.Printf("未対応のメッセージタイプ: %T", lineMessage)
 			}
 		}
 	}
