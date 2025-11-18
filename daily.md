@@ -132,32 +132,40 @@ sqlcが自動生成した型:
 - `db.Message`: messagesテーブルの構造体
 - `db.CreateMessageParams`: CreateMessage関数のパラメータ構造体
 
-#### 9. 自動マイグレーション機能の実装
+#### 9. 自動マイグレーション機能の実装（CockroachDB対応版）
 
-golang-migrate/migrateライブラリを使って、アプリケーション起動時に自動でマイグレーションを実行する機能を追加しました。
-
-導入したライブラリ:
-- `github.com/golang-migrate/migrate/v4`: マイグレーション管理
-- `github.com/golang-migrate/migrate/v4/database/postgres`: PostgreSQL/CockroachDBドライバー
-- `github.com/golang-migrate/migrate/v4/source/file`: ファイルからマイグレーションを読み込む
-- `github.com/lib/pq`: PostgreSQLドライバー（database/sql用）
+CockroachDBは`pg_advisory_lock()`をサポートしていないため、golang-migrateの代わりにpgxpoolを使った独自のマイグレーション実装を作成しました。
 
 実装内容:
 
 1. マイグレーションヘルパー関数を作成:
    - `internal/platform/database/migrate.go`
-   - `RunMigrations()`関数でマイグレーションを自動実行
+   - pgxpoolを使ってマイグレーションSQLを直接実行
+   - `schema_migrations`テーブルでバージョン管理
 
-2. main.goで起動時にマイグレーション実行:
-   - database/sql接続でマイグレーション実行
-   - pgxpoolでsqlcのクエリ実行
+2. マイグレーションの仕組み:
+   - `schema_migrations`テーブルを作成（version INT, dirty BOOLEAN）
+   - `migrations/`ディレクトリから`.up.sql`ファイルを読み込み
+   - ファイル名からバージョン番号を抽出（例: 001_create_messages_table.up.sql → 1）
+   - 現在のバージョンより新しいマイグレーションのみ実行
+   - トランザクション内で実行して原子性を保証
+
+3. マイグレーションファイルの命名規則:
+   - `{version}_{description}.up.sql`形式
+   - 例: `001_create_messages_table.up.sql`
+
+4. main.goで起動時にマイグレーション実行:
+   - pgxpool接続でマイグレーション実行
+   - 同じpgxpool接続でsqlcのクエリ実行
    - 実行済みマイグレーションは自動でスキップ
 
 メリット:
+- CockroachDBで正常に動作（pg_advisory_lock()不要）
 - 手動でマイグレーションSQLを実行する必要がなくなった
 - マイグレーション履歴を自動管理
 - 複数回起動しても安全（冪等性）
-- 本番環境でも安全に使える
+- トランザクションで原子性を保証
+- golang-migrateの依存関係が不要
 
 ### アーキテクチャの変更点
 
