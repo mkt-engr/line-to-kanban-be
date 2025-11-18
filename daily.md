@@ -32,16 +32,7 @@ LINEメッセージをCockroachDBに保存する機能を実装しました。
 - `github.com/jackc/pgx/v5`: PostgreSQL/CockroachDB用のGoドライバー
 - Go標準の`database/sql`パッケージを使用
 
-#### 4. リポジトリ実装
-
-`internal/adapter/repository/cockroachdb/message_repository.go`を作成:
-
-- `Save()`: メッセージをDBに保存
-- `FindByID()`: IDでメッセージを検索
-- `FindAll()`: 全メッセージを取得（作成日時降順）
-- `UpdateStatus()`: 未実装（今回のスコープ外）
-
-#### 5. 設定管理の追加
+#### 4. 設定管理の追加
 
 `internal/platform/config/database.go`を作成:
 
@@ -170,6 +161,8 @@ golang-migrate/migrateライブラリを使って、アプリケーション起�
 
 ### アーキテクチャの変更点
 
+sqlcの導入により、手動でリポジトリ実装を書く必要がなくなりました。
+
 依存関係フロー:
 
 ```
@@ -179,27 +172,15 @@ cmd/api/main.go
 adapter/line/webhook_handler.go
   | (依存)
   v
-domain/message/repository.go (インターフェース)
-  ^
-  | (実装)
-adapter/repository/cockroachdb/message_repository.go
+adapter/repository/db (sqlc自動生成)
 ```
 
-クリーンアーキテクチャの原則に従い、domainレイヤーがインターフェースを定義し、adapterレイヤーが具体的な実装を提供する構造を維持しました。
-
-### 次のステップ
-
-1. マイグレーションSQLを実行してテーブル作成
-2. sqlcでクエリファイルを作成
-3. sqlc generateでコード生成
-4. 生成されたコードを使ってリポジトリを書き換え
-5. アプリケーションをビルド＆起動してDB接続確認
-6. LINEからメッセージを送信してDB保存をテスト
+sqlcが型安全なインターフェース(Querier)と実装を自動生成するため、domainレイヤーは不要になりました。
 
 ### 技術スタック
 
-- **データベース**: CockroachDB (PostgreSQL互換)
-- **ドライバー**: pgx v5
-- **言語**: Go 1.23
-- **アーキテクチャ**: クリーンアーキテクチャ
-- **コード生成**: sqlc
+- データベース: CockroachDB (PostgreSQL互換)
+- ドライバー: pgx v5
+- 言語: Go 1.23
+- コード生成: sqlc
+- マイグレーション: golang-migrate/migrate
