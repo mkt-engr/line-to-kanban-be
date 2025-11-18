@@ -61,3 +61,8 @@ type Message struct {
 	CreatedAt pgtype.Timestamp `json:"created_at"`
 	UpdatedAt pgtype.Timestamp `json:"updated_at"`
 }
+
+type SchemaMigration struct {
+	Version int32 `json:"version"`
+	Dirty   bool  `json:"dirty"`
+}

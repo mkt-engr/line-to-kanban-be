@@ -134,32 +134,46 @@ sqlcが自動生成した型:
 
 #### 9. 自動マイグレーション機能の実装（CockroachDB対応版）
 
-CockroachDBは`pg_advisory_lock()`をサポートしていないため、golang-migrateの代わりにpgxpoolを使った独自のマイグレーション実装を作成しました。
+CockroachDBは`pg_advisory_lock()`をサポートしていないため、golang-migrateの代わりにpgxpool + sqlcを使った独自のマイグレーション実装を作成しました。
 
 実装内容:
 
-1. マイグレーションヘルパー関数を作成:
+1. マイグレーションSQLファイル:
+   - `migrations/000_init_schema_migrations.up.sql`: schema_migrationsテーブルの作成
+   - `migrations/001_create_messages_table.up.sql`: messagesテーブルの作成
+   - すべてのマイグレーションロジックをSQLファイルで管理
+
+2. マイグレーション管理用のクエリ（sqlc使用）:
+   - `queries/schema_migrations.sql`にクエリを定義
+   - `GetCurrentMigrationVersion`: 現在のバージョンを取得
+   - `InsertMigrationVersion`: 新しいバージョンを記録
+   - sqlcで型安全なGoコードを自動生成
+
+3. マイグレーション実行ロジック:
    - `internal/platform/database/migrate.go`
    - pgxpoolを使ってマイグレーションSQLを直接実行
-   - `schema_migrations`テーブルでバージョン管理
-
-2. マイグレーションの仕組み:
-   - `schema_migrations`テーブルを作成（version INT, dirty BOOLEAN）
-   - `migrations/`ディレクトリから`.up.sql`ファイルを読み込み
-   - ファイル名からバージョン番号を抽出（例: 001_create_messages_table.up.sql → 1）
-   - 現在のバージョンより新しいマイグレーションのみ実行
+   - sqlcの生成コードでバージョン管理
    - トランザクション内で実行して原子性を保証
 
-3. マイグレーションファイルの命名規則:
-   - `{version}_{description}.up.sql`形式
-   - 例: `001_create_messages_table.up.sql`
+4. マイグレーションの仕組み:
+   - `migrations/`ディレクトリから`.up.sql`ファイルを読み込み
+   - ファイル名からバージョン番号を抽出（例: 001_create_messages_table.up.sql → 1）
+   - sqlcで現在のバージョンを取得
+   - 現在のバージョンより新しいマイグレーションのみ実行
+   - 実行後、sqlcでバージョンを記録
 
-4. main.goで起動時にマイグレーション実行:
+5. マイグレーションファイルの命名規則:
+   - `{version}_{description}.up.sql`形式
+   - 例: `000_init_schema_migrations.up.sql`, `001_create_messages_table.up.sql`
+
+6. main.goで起動時にマイグレーション実行:
    - pgxpool接続でマイグレーション実行
    - 同じpgxpool接続でsqlcのクエリ実行
    - 実行済みマイグレーションは自動でスキップ
 
 メリット:
+- すべてのSQLをファイルで管理（Goコードにハードコードしない）
+- sqlcで型安全なバージョン管理
 - CockroachDBで正常に動作（pg_advisory_lock()不要）
 - 手動でマイグレーションSQLを実行する必要がなくなった
 - マイグレーション履歴を自動管理

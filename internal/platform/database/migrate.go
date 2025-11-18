@@ -9,27 +9,20 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"line-to-kanban-be/internal/adapter/repository/db"
 )
 
 // RunMigrations はマイグレーションを実行します
 // CockroachDB向けにpgxpoolを使用してマイグレーションSQLを直接実行
 func RunMigrations(ctx context.Context, pool *pgxpool.Pool, migrationsPath string) error {
-	// schema_migrationsテーブルを作成（存在しない場合）
-	createTableSQL := `
-		CREATE TABLE IF NOT EXISTS schema_migrations (
-			version INT PRIMARY KEY,
-			dirty BOOLEAN NOT NULL DEFAULT FALSE
-		)
-	`
-	if _, err := pool.Exec(ctx, createTableSQL); err != nil {
-		return fmt.Errorf("failed to create schema_migrations table: %w", err)
-	}
+	queries := db.New(pool)
 
 	// 現在適用されているバージョンを取得
-	var currentVersion int
-	err := pool.QueryRow(ctx, "SELECT COALESCE(MAX(version), 0) FROM schema_migrations WHERE NOT dirty").Scan(&currentVersion)
+	// schema_migrationsテーブルが存在しない場合は-1を返す
+	currentVersion, err := queries.GetCurrentMigrationVersion(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get current version: %w", err)
+		// テーブルが存在しない場合は、バージョン-1から開始（000_init_schema_migrations.up.sqlを実行するため）
+		currentVersion = -1
 	}
 
 	// マイグレーションファイルを読み込み
@@ -57,7 +50,7 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool, migrationsPath strin
 		}
 
 		// 既に適用済みの場合はスキップ
-		if version <= currentVersion {
+		if int32(version) <= currentVersion {
 			continue
 		}
 
@@ -80,8 +73,9 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool, migrationsPath strin
 			return fmt.Errorf("failed to execute migration %s: %w", fileName, err)
 		}
 
-		// バージョンを記録
-		if _, err := tx.Exec(ctx, "INSERT INTO schema_migrations (version, dirty) VALUES ($1, FALSE)", version); err != nil {
+		// バージョンを記録（sqlcの生成コードを使用）
+		txQueries := queries.WithTx(tx)
+		if err := txQueries.InsertMigrationVersion(ctx, int32(version)); err != nil {
 			tx.Rollback(ctx)
 			return fmt.Errorf("failed to record migration version: %w", err)
 		}

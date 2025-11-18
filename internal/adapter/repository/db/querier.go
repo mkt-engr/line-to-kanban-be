@@ -16,6 +16,8 @@ type Querier interface {
 	// SELECT * FROM messages
 	// ORDER BY created_at DESC;
 	CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error)
+	GetCurrentMigrationVersion(ctx context.Context) (int32, error)
+	InsertMigrationVersion(ctx context.Context, dollar_1 int32) error
 }
 
 var _ Querier = (*Queries)(nil)
