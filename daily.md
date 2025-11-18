@@ -141,6 +141,33 @@ sqlcが自動生成した型:
 - `db.Message`: messagesテーブルの構造体
 - `db.CreateMessageParams`: CreateMessage関数のパラメータ構造体
 
+#### 9. 自動マイグレーション機能の実装
+
+golang-migrate/migrateライブラリを使って、アプリケーション起動時に自動でマイグレーションを実行する機能を追加しました。
+
+導入したライブラリ:
+- `github.com/golang-migrate/migrate/v4`: マイグレーション管理
+- `github.com/golang-migrate/migrate/v4/database/postgres`: PostgreSQL/CockroachDBドライバー
+- `github.com/golang-migrate/migrate/v4/source/file`: ファイルからマイグレーションを読み込む
+- `github.com/lib/pq`: PostgreSQLドライバー（database/sql用）
+
+実装内容:
+
+1. マイグレーションヘルパー関数を作成:
+   - `internal/platform/database/migrate.go`
+   - `RunMigrations()`関数でマイグレーションを自動実行
+
+2. main.goで起動時にマイグレーション実行:
+   - database/sql接続でマイグレーション実行
+   - pgxpoolでsqlcのクエリ実行
+   - 実行済みマイグレーションは自動でスキップ
+
+メリット:
+- 手動でマイグレーションSQLを実行する必要がなくなった
+- マイグレーション履歴を自動管理
+- 複数回起動しても安全（冪等性）
+- 本番環境でも安全に使える
+
 ### アーキテクチャの変更点
 
 依存関係フロー:

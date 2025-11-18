@@ -2,17 +2,20 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/joho/godotenv"
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/lib/pq"
 
 	httpAdapter "line-to-kanban-be/internal/adapter/http"
 	lineAdapter "line-to-kanban-be/internal/adapter/line"
 	"line-to-kanban-be/internal/adapter/repository/db"
 	"line-to-kanban-be/internal/platform/config"
+	"line-to-kanban-be/internal/platform/database"
 	"line-to-kanban-be/internal/platform/logger"
 )
 
@@ -37,11 +40,26 @@ func main() {
 	}
 	appLogger.Info("LINE Bot client initialized successfully")
 
-	// データベース接続の初期化 (pgxpool使用)
+	// データベース接続の初期化
 	if dbConfig.URL == "" {
 		log.Fatal("Database URL is required. Please set DATABASE_URL environment variable.")
 	}
 
+	// マイグレーション用にdatabase/sql接続を作成
+	sqlDB, err := sql.Open("postgres", dbConfig.URL)
+	if err != nil {
+		log.Fatalf("データベース接続に失敗しました: %v", err)
+	}
+	defer sqlDB.Close()
+
+	// マイグレーションを実行
+	appLogger.Info("Running database migrations...")
+	if err := database.RunMigrations(sqlDB, "migrations"); err != nil {
+		log.Fatalf("マイグレーション実行に失敗しました: %v", err)
+	}
+	appLogger.Info("Database migrations completed successfully")
+
+	// sqlc用にpgxpool接続を作成
 	ctx := context.Background()
 	dbPool, err := pgxpool.New(ctx, dbConfig.URL)
 	if err != nil {
