@@ -13,16 +13,17 @@ const createMessage = `-- name: CreateMessage :one
 
 
 INSERT INTO messages (
-  content, status
+  content, status, user_id
 ) VALUES (
-  $1, $2
+  $1, $2, $3
 )
-RETURNING id, content, status, created_at, updated_at
+RETURNING id, content, status, created_at, updated_at, user_id
 `
 
 type CreateMessageParams struct {
 	Content string        `json:"content"`
 	Status  MessageStatus `json:"status"`
+	UserID  string        `json:"user_id"`
 }
 
 // -- name: GetMessage :one
@@ -32,7 +33,7 @@ type CreateMessageParams struct {
 // SELECT * FROM messages
 // ORDER BY created_at DESC;
 func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error) {
-	row := q.db.QueryRow(ctx, createMessage, arg.Content, arg.Status)
+	row := q.db.QueryRow(ctx, createMessage, arg.Content, arg.Status, arg.UserID)
 	var i Message
 	err := row.Scan(
 		&i.ID,
@@ -40,6 +41,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }

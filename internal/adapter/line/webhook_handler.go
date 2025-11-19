@@ -53,6 +53,7 @@ func (h *WebhookHandler) Handle(w http.ResponseWriter, req *http.Request) {
 				savedMsg, err := h.queries.CreateMessage(ctx, db.CreateMessageParams{
 					Content: lineMessage.Text,
 					Status:  db.MessageStatusTodo,
+					UserID:  userID,
 				})
 				if err != nil {
 					log.Printf("メッセージ保存エラー: %v", err)

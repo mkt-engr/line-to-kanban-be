@@ -8,9 +8,9 @@
 
 -- name: CreateMessage :one
 INSERT INTO messages (
-  content, status
+  content, status, user_id
 ) VALUES (
-  $1, $2
+  $1, $2, $3
 )
 RETURNING *;
 

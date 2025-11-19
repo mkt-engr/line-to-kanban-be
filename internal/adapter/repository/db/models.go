@@ -60,6 +60,7 @@ type Message struct {
 	Status    MessageStatus    `json:"status"`
 	CreatedAt pgtype.Timestamp `json:"created_at"`
 	UpdatedAt pgtype.Timestamp `json:"updated_at"`
+	UserID    string           `json:"user_id"`
 }
 
 type SchemaMigration struct {
