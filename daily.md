@@ -207,6 +207,18 @@ sqlcが自動生成した型:
 
 CockroachDBは`pg_advisory_lock()`をサポートしていないため、golang-migrateの代わりにpgxpool + sqlcを使った独自のマイグレーション実装を作成しました。
 
+pg_advisory_lock()とは:
+- PostgreSQLのアドバイザリロック機能
+- 複数のプロセスが同時にマイグレーションを実行するのを防ぐための排他制御
+- golang-migrateなどのマイグレーションツールが内部で使用
+- CockroachDBは分散データベースのため、この関数をサポートしていない
+- 代わりにCockroachDBは独自のトランザクション管理機構を持つ
+
+今回の対応:
+- golang-migrateを使わず、独自のマイグレーション実装を作成
+- トランザクション内でマイグレーションを実行することで排他制御を実現
+- CockroachDBのトランザクション機能を活用
+
 実装内容:
 
 1. マイグレーションSQLファイル:
