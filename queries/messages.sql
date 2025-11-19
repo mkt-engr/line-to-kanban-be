@@ -2,9 +2,10 @@
 -- SELECT * FROM messages
 -- WHERE id = $1 LIMIT 1;
 
--- -- name: ListMessages :many
--- SELECT * FROM messages
--- ORDER BY created_at DESC;
+-- name: ListMessagesByUser :many
+SELECT * FROM messages
+WHERE user_id = $1
+ORDER BY created_at DESC;
 
 -- name: CreateMessage :one
 INSERT INTO messages (

@@ -9,15 +9,13 @@ import (
 )
 
 type Querier interface {
-	// -- name: GetMessage :one
-	// SELECT * FROM messages
-	// WHERE id = $1 LIMIT 1;
-	// -- name: ListMessages :many
-	// SELECT * FROM messages
-	// ORDER BY created_at DESC;
 	CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error)
 	GetCurrentMigrationVersion(ctx context.Context) (int32, error)
 	InsertMigrationVersion(ctx context.Context, dollar_1 int32) error
+	// -- name: GetMessage :one
+	// SELECT * FROM messages
+	// WHERE id = $1 LIMIT 1;
+	ListMessagesByUser(ctx context.Context, userID string) ([]Message, error)
 }
 
 var _ Querier = (*Queries)(nil)

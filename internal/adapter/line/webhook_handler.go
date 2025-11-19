@@ -2,6 +2,7 @@ package line
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -48,8 +49,49 @@ func (h *WebhookHandler) Handle(w http.ResponseWriter, req *http.Request) {
 				// テキストメッセージの内容をログに出力
 				log.Printf("【メッセージ検出】ユーザー: %s, 内容: %s", userID, lineMessage.Text)
 
-				// メッセージをデータベースに保存 (sqlc使用)
 				ctx := context.Background()
+
+				// 「一覧」コマンドの処理
+				if lineMessage.Text == "一覧" {
+					// ユーザーの過去のメッセージを取得
+					messages, err := h.queries.ListMessagesByUser(ctx, userID)
+					if err != nil {
+						log.Printf("メッセージ一覧取得エラー: %v", err)
+						replyMessage := "メッセージ一覧の取得に失敗しました"
+						if _, err := h.client.GetBot().ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
+							log.Printf("返信エラー: %v", err)
+						}
+						return
+					}
+
+					// メッセージがない場合
+					if len(messages) == 0 {
+						replyMessage := "まだメッセージが登録されていません"
+						if _, err := h.client.GetBot().ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
+							log.Printf("返信エラー: %v", err)
+						}
+						return
+					}
+
+					// 箇条書きでメッセージ一覧を作成
+					var replyText string
+					replyText = "【あなたのメッセージ一覧】\n\n"
+					for i, msg := range messages {
+						// 「一覧」コマンド自体は除外
+						if msg.Content == "一覧" {
+							continue
+						}
+						replyText += fmt.Sprintf("%d. %s\n", i+1, msg.Content)
+					}
+
+					if _, err := h.client.GetBot().ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyText)).Do(); err != nil {
+						log.Printf("返信エラー: %v", err)
+					}
+					return
+				}
+
+				// 通常のメッセージ処理（「一覧」以外）
+				// メッセージをデータベースに保存 (sqlc使用)
 				savedMsg, err := h.queries.CreateMessage(ctx, db.CreateMessageParams{
 					Content: lineMessage.Text,
 					Status:  db.MessageStatusTodo,

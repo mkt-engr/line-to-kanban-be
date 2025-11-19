@@ -10,8 +10,6 @@ import (
 )
 
 const createMessage = `-- name: CreateMessage :one
-
-
 INSERT INTO messages (
   content, status, user_id
 ) VALUES (
@@ -26,12 +24,6 @@ type CreateMessageParams struct {
 	UserID  string        `json:"user_id"`
 }
 
-// -- name: GetMessage :one
-// SELECT * FROM messages
-// WHERE id = $1 LIMIT 1;
-// -- name: ListMessages :many
-// SELECT * FROM messages
-// ORDER BY created_at DESC;
 func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error) {
 	row := q.db.QueryRow(ctx, createMessage, arg.Content, arg.Status, arg.UserID)
 	var i Message
@@ -44,4 +36,41 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		&i.UserID,
 	)
 	return i, err
+}
+
+const listMessagesByUser = `-- name: ListMessagesByUser :many
+
+SELECT id, content, status, created_at, updated_at, user_id FROM messages
+WHERE user_id = $1
+ORDER BY created_at DESC
+`
+
+// -- name: GetMessage :one
+// SELECT * FROM messages
+// WHERE id = $1 LIMIT 1;
+func (q *Queries) ListMessagesByUser(ctx context.Context, userID string) ([]Message, error) {
+	rows, err := q.db.Query(ctx, listMessagesByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Message{}
+	for rows.Next() {
+		var i Message
+		if err := rows.Scan(
+			&i.ID,
+			&i.Content,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
