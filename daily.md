@@ -1,5 +1,76 @@
 # 開発日誌
 
+## 2025-11-19
+
+### 概要
+
+マイグレーション処理をsqlcで型安全に管理するよう改善し、messagesテーブルにuser_idカラムを追加しました。
+
+### 完了したタスク
+
+#### 1. マイグレーション処理のsqlc化
+
+すべてのマイグレーション関連のSQLをファイルで管理し、sqlcで型安全なコードを生成するよう改善しました。
+
+実装内容:
+
+1. schema_migrationsテーブルの作成をSQLファイル化:
+   - `migrations/000_init_schema_migrations.up.sql`を作成
+   - Goコードにハードコードしていたテーブル定義を削除
+
+2. マイグレーション管理クエリをsqlcで定義:
+   - `queries/schema_migrations.sql`を作成
+   - `GetCurrentMigrationVersion`: 現在のバージョンを取得
+   - `InsertMigrationVersion`: 新しいバージョンを記録
+   - 型キャスト(`::int`)でsqlcが正しい型(int32)を生成
+
+3. migrate.goでsqlcの生成コードを使用:
+   - 生SQLクエリをすべて削除
+   - sqlcで生成された関数を使用
+   - 型安全性が向上
+
+メリット:
+- すべてのSQLをファイルで管理（Goコードにハードコードしない）
+- sqlcで型安全なバージョン管理
+- SQLとGoコードの明確な分離
+- 保守性の向上
+
+#### 2. messagesテーブルにuser_idカラムを追加
+
+どのLINEユーザーがメッセージを送信したかを追跡できるようにしました。
+
+実装内容:
+
+1. マイグレーションファイルを作成:
+   - `migrations/002_add_user_id_to_messages.up.sql`
+   - `user_id TEXT NOT NULL DEFAULT ''`カラムを追加
+   - `user_id`にインデックスを追加（ユーザー別検索の高速化）
+
+2. sqlcクエリを更新:
+   - `queries/messages.sql`の`CreateMessage`に`user_id`パラメータを追加
+   - sqlcでコード再生成
+
+3. Webhookハンドラーを更新:
+   - `internal/adapter/line/webhook_handler.go`
+   - LINEから取得した`userID`をデータベースに保存
+
+メリット:
+- メッセージの送信者を追跡可能
+- ユーザー別のメッセージ検索が高速化
+- 将来的にユーザー別のタスク管理が可能
+
+### 技術的な学び
+
+1. SQLの型キャスト:
+   - PostgreSQL/CockroachDBでは`::int`で型キャストが可能
+   - TypeScriptの`as`とは異なり、実行時に型変換が行われるため安全
+   - sqlcが正しい型を推論するために有効
+
+2. マイグレーションのベストプラクティス:
+   - すべてのSQLをファイルで管理
+   - バージョン管理もsqlcで型安全に
+   - Goコードには制御フローのみを記述
+
 ## 2025-11-18
 
 ### 概要
