@@ -1,21 +1,15 @@
 -- Migration 003: Rename messages to tasks
 --
--- Note: This migration was originally intended to rename:
--- - ENUM: message_status → task_status
--- - Table: messages → tasks
--- - Indexes: messages_*_idx → tasks_*_idx
---
--- However, the database schema was already manually updated to use 'tasks'.
--- This migration file serves as a version marker only.
---
--- If you need to apply this migration on a fresh database with 'messages' table,
--- run the following SQL manually:
---
--- ALTER TYPE message_status RENAME TO task_status;
--- ALTER TABLE messages RENAME TO tasks;
--- ALTER INDEX messages_created_at_idx RENAME TO tasks_created_at_idx;
--- ALTER INDEX messages_status_idx RENAME TO tasks_status_idx;
--- ALTER INDEX messages_user_id_idx RENAME TO tasks_user_id_idx;
+-- This migration renames the database objects from 'message' to 'task'
+-- to align with the domain model.
 
--- Empty migration - schema already in correct state
-SELECT 1;
+-- Rename ENUM type from message_status to task_status
+ALTER TYPE message_status RENAME TO task_status;
+
+-- Rename table from messages to tasks
+ALTER TABLE messages RENAME TO tasks;
+
+-- Rename indexes to match new table name
+ALTER INDEX messages_created_at_idx RENAME TO tasks_created_at_idx;
+ALTER INDEX messages_status_idx RENAME TO tasks_status_idx;
+ALTER INDEX messages_user_id_idx RENAME TO tasks_user_id_idx;
