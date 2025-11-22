@@ -8,9 +8,9 @@ LINEからタスクを削除する機能を実装しました。その後、ク�
 
 ### 完了したタスク
 
-#### 2. クリーンアーキテクチャへのリファクタリング（タスク作成機能）
+#### 2. クリーンアーキテクチャへのリファクタリング
 
-タスク作成機能をクリーンアーキテクチャに準拠するよう、usecase経由に変更しました。
+全ての機能（タスク作成、一覧表示、削除）をクリーンアーキテクチャに準拠するよう、usecase経由に変更しました。
 
 実装内容:
 
@@ -51,38 +51,24 @@ webhook_handler → usecase → repository → sqlc → DB
 
 メリット:
 - テスト容易性: usecaseのテストでRepositoryをモック化可能
-- ビジネスロジックの集約: タスク作成ロジックがusecase層に集約
+- ビジネスロジックの集約: 全てのビジネスロジックがusecase層に集約
 - 型安全性: domain型で統一され、DB詳細が隠蔽される
 - 保守性: DB変更時はrepository層のみ修正すれば良い
+- 一貫性: repository層とusecase層で統一したRead/Write分割パターン
 
-次回対応予定:
-- ステータス更新機能の実装
+6. 一覧表示・削除機能のusecase化:
+   - `internal/app/message/usecase_read.go`: `ListMessagesByUser`を追加
+   - `internal/app/message/usecase_write.go`: `DeleteMessage`を追加
+   - `internal/adapter/line/webhook_handler.go`: 一覧・削除処理をusecase経由に変更
+   - queriesフィールドを完全に削除し、全てのDB操作がusecase経由に統一
 
-#### 4. 一覧表示・削除機能のusecase化とusecase層の分割
-
-一覧表示と削除機能をusecase経由に変更し、さらにusecase層もrepositoryと同じパターンで分割しました。
-
-実装内容:
-
-1. usecaseに新しいメソッドを追加:
-   - `ListMessagesByUser`: ユーザーのメッセージ一覧を取得
-   - `DeleteMessage`: メッセージを削除
-
-2. webhook_handlerをusecase経由に変更:
-   - `handleListCommand`: queries.ListMessagesByUser → usecase.ListMessagesByUser
-   - `handleDeleteCommand`: queries.DeleteMessage → usecase.DeleteMessage
-   - queriesフィールドを完全に削除
-
-3. usecase層のファイル分割:
+7. usecase層のファイル分割:
    - `usecase.go`: 構造体定義とコンストラクタ（15行）
    - `usecase_read.go`: Read系メソッド - ListMessagesByUser（約20行）
    - `usecase_write.go`: Write系メソッド - CreateMessage, UpdateMessageStatus, DeleteMessage（約25行）
 
-メリット:
-- 全てのDB操作がusecase経由に統一された
-- repository層と同じパターンで分割し、一貫性が向上
-- 各ファイルが15-25行程度で非常に読みやすい
-- テストが書きやすい構造
+次回対応予定:
+- ステータス更新機能の実装
 
 #### 3. リポジトリ層のファイル分割
 
