@@ -20,6 +20,10 @@ ERROR: unimplemented: ALTER TYPE usage inside a function definition is not suppo
 1. ローカルで`./app`実行時、DBが既に`tasks`テーブルになっていた
 2. マイグレーション003は`messages`→`tasks`にリネームしようとしたが、既に存在しない
 3. CockroachDBは`DO $$ ... END $$`ブロック内で`ALTER TYPE`をサポートしていない
+   - エラー: `ERROR: unimplemented: ALTER TYPE usage inside a function definition is not supported (SQLSTATE 0A000)`
+   - CockroachDBはPostgreSQL互換を目指しているが、PL/pgSQL（手続き型SQL）の一部機能は未実装
+   - 参考: [CockroachDB PostgreSQL Compatibility](https://www.cockroachlabs.com/docs/stable/postgresql-compatibility)
+   - 参考: [CockroachDB User-Defined Functions](https://www.cockroachlabs.com/docs/stable/user-defined-functions)
 
 解決策:
 - マイグレーション003を空の状態（`SELECT 1;`のみ）に変更
