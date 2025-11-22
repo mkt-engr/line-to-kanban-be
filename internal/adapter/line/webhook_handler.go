@@ -97,8 +97,14 @@ func (h *WebhookHandler) Handle(w http.ResponseWriter, req *http.Request) {
 				}
 
 			default:
-				// テキスト以外のメッセージ（スタンプ、画像など）は無視
+				// テキスト以外のメッセージ（スタンプ、画像など）
 				log.Printf("未対応のメッセージタイプ: %T", lineMessage)
+
+				// ユーザーに対応外である旨を通知
+				replyMessage := "申し訳ございません。テキストメッセージのみ対応しています。\n\n以下のコマンドが使用できます:\n・一覧: タスク一覧を表示\n・削除 [番号]: タスクを削除\n・その他のテキスト: 新しいタスクとして登録"
+				if _, err := h.client.GetBot().ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
+					log.Printf("返信エラー: %v", err)
+				}
 			}
 		}
 	}
