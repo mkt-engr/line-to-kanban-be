@@ -22,14 +22,19 @@ line-to-kanban-be/
 │   ├── adapter/                 # アダプター層（外部I/O実装）
 │   │   ├── http/
 │   │   │   ├── router.go                # ルーティング設定
-│   │   │   ├── hello_handler.go         # GET / (hello world)
-│   │   │   ├── health_handler.go        # GET /healthz
-│   │   │   ├── line_webhook_handler.go  # POST /line/webhook
-│   │   │   ├── admin_handler.go         # POST /admin/tasks
-│   │   │   └── kanban_handler.go        # PUT /kanban/status
+│   │   │   └── line_webhook_handler.go  # POST /line/webhook
+│   │   ├── line/
+│   │   │   ├── client.go                # LINE Bot クライアント
+│   │   │   └── webhook_handler.go       # LINE Webhook処理
 │   │   └── repository/
-│   │       └── memory/
-│   │           └── message_repository.go # インメモリリポジトリ実装
+│   │       ├── message_repository.go    # リポジトリ構造体定義
+│   │       ├── message_read.go          # Read系メソッド（FindByID, FindByUserID）
+│   │       ├── message_write.go         # Write系メソッド（Save, UpdateStatus, Delete）
+│   │       ├── message_converter.go     # 型変換（domain ⇔ DB）
+│   │       └── db/                      # sqlc生成コード
+│   │           ├── models.go
+│   │           ├── messages.sql.go
+│   │           └── querier.go
 │   └── platform/                # 横断的関心事
 │       ├── config/
 │       │   └── config.go        # 環境変数・設定管理
@@ -46,10 +51,26 @@ line-to-kanban-be/
 adapter → app → domain
 ```
 
-- **domain 層**: ビジネスルールを持つエンティティ。他の層に依存しない
-- **app 層**: ユースケース実装。domain に依存
-- **adapter 層**: 外部 I/O（HTTP、DB 等）の実装。app と domain に依存
-- **platform 層**: 設定やロガーなど横断的な機能
+- domain 層: ビジネスルールを持つエンティティ。他の層に依存しない
+- app 層: ユースケース実装。domain に依存
+- adapter 層: 外部 I/O（HTTP、DB 等）の実装。app と domain に依存
+- platform 層: 設定やロガーなど横断的な機能
+
+### リポジトリ層のファイル分割
+
+repository層は機能ごとにファイルを分割し、Goの標準的なテスト規約に準拠：
+
+ファイル構成:
+- message_repository.go: 構造体定義とコンストラクタ（15行）
+- message_read.go: Read系メソッド（約30行）
+- message_write.go: Write系メソッド（約30行）
+- message_converter.go: 型変換関数（約35行）
+
+設計方針:
+- 各ファイル15-40行程度で管理しやすく保つ
+- テストファイルは_testサフィックス（例: message_read_test.go）
+- 1ファイルに全メソッドを含めると将来的に200行超になるため分割
+- Read/Write分割により、関連する機能をグループ化
 
 ## API エンドポイント
 
@@ -87,7 +108,20 @@ curl http://localhost:8080/healthz      # ヘルスチェック
 ## 依存関係
 
 - `github.com/google/uuid` - UUID 生成（メッセージ ID 用）
+- `github.com/line/line-bot-sdk-go/v7` - LINE Bot SDK
+- `github.com/jackc/pgx/v5` - PostgreSQL ドライバー
+- `github.com/joho/godotenv` - 環境変数読み込み
+
+## データベース
+
+- PostgreSQL を使用
+- sqlc でクエリから型安全なコードを自動生成
+- マイグレーション管理
 
 ## 環境変数
 
 - `PORT`: サーバーポート番号（デフォルト: 8080）
+- `LINE_CHANNEL_SECRET`: LINE Bot チャンネルシークレット
+- `LINE_CHANNEL_ACCESS_TOKEN`: LINE Bot アクセストークン
+- `DATABASE_URL`: PostgreSQL 接続URL
+- to memorize

@@ -11,7 +11,9 @@ import (
 
 	httpAdapter "line-to-kanban-be/internal/adapter/http"
 	lineAdapter "line-to-kanban-be/internal/adapter/line"
+	"line-to-kanban-be/internal/adapter/repository"
 	"line-to-kanban-be/internal/adapter/repository/db"
+	"line-to-kanban-be/internal/app/message"
 	"line-to-kanban-be/internal/platform/config"
 	"line-to-kanban-be/internal/platform/database"
 	"line-to-kanban-be/internal/platform/logger"
@@ -67,8 +69,14 @@ func main() {
 	// sqlcで生成されたQueriesの初期化
 	queries := db.New(dbPool)
 
-	// LINE Webhookハンドラーの初期化
-	lineWebhookHandler := lineAdapter.NewWebhookHandler(lineClient, queries)
+	// Repository層の初期化
+	messageRepo := repository.NewMessageRepository(queries)
+
+	// Usecase層の初期化
+	messageUsecase := message.NewUsecase(messageRepo)
+
+	// LINE Webhookハンドラーの初期化（queries は一覧・削除コマンドで一時的に使用）
+	lineWebhookHandler := lineAdapter.NewWebhookHandler(lineClient, queries, messageUsecase)
 	appLogger.Info("Webhook handler initialized successfully")
 
 	// ルーターの作成

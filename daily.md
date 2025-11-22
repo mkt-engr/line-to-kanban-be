@@ -4,9 +4,60 @@
 
 ### 概要
 
-LINEからタスクを削除する機能を実装しました。スケーラビリティを考慮した設計で、コマンドをDBに保存せず、正規表現でスペースの有無に対応しています。
+LINEからタスクを削除する機能を実装しました。その後、クリーンアーキテクチャを採用し、タスク作成機能をusecase経由に リファクタリングしました。
 
 ### 完了したタスク
+
+#### 2. クリーンアーキテクチャへのリファクタリング（タスク作成機能）
+
+タスク作成機能をクリーンアーキテクチャに準拠するよう、usecase経由に変更しました。
+
+実装内容:
+
+1. domain層の修正:
+   - `internal/domain/message/entity.go`: Status型を`todo/in_progress/done`に変更（DBスキーマに合わせる）
+   - `Message`エンティティに`UserID`フィールドを追加
+   - `NewMessage`関数に`userID`パラメータを追加
+
+2. Repository実装の作成:
+   - `internal/adapter/repository/message_repository.go`: 新規作成
+   - domainの`Repository`インターフェースをsqlc実装でラップ
+   - 型変換: `db.Message` ⇔ `domain.Message`
+   - pgtype.UUIDとstring間の変換処理を実装
+   - `Save`, `FindByUserID`, `Delete`メソッドを実装
+
+3. app層（usecase）の修正:
+   - `internal/app/message/usecase.go`: `CreateMessage`を修正してuserIDに対応
+   - `internal/app/message/dto.go`: `CreateMessageRequest`と`MessageResponse`に`UserID`を追加
+
+4. adapter層の修正:
+   - `internal/adapter/line/webhook_handler.go`: タスク作成処理をusecase経由に変更
+   - `queries.CreateMessage`の直接呼び出しから`usecase.CreateMessage`に変更
+   - コマンド処理（一覧・削除）は引き続きqueries直接呼び出し（次回対応予定）
+
+5. DI（依存性注入）の組み立て:
+   - `cmd/api/main.go`: Repository → Usecase → Handlerの順で初期化
+   - `NewMessageRepository(queries)`でRepository層を作成
+   - `NewUsecase(messageRepo)`でUsecase層を作成
+   - `NewWebhookHandler(lineClient, queries, messageUsecase)`でHandlerを作成
+
+依存関係の流れ:
+```
+webhook_handler → usecase → repository → sqlc → DB
+     (adapter)      (app)    (adapter)   (生成)
+                      ↓
+                   domain
+```
+
+メリット:
+- テスト容易性: usecaseのテストでRepositoryをモック化可能
+- ビジネスロジックの集約: タスク作成ロジックがusecase層に集約
+- 型安全性: domain型で統一され、DB詳細が隠蔽される
+- 保守性: DB変更時はrepository層のみ修正すれば良い
+
+次回対応予定:
+- 一覧表示コマンドのusecase化
+- 削除コマンドのusecase化
 
 #### 1. 削除機能の実装
 

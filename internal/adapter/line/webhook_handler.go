@@ -11,19 +11,22 @@ import (
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 
 	"line-to-kanban-be/internal/adapter/repository/db"
+	"line-to-kanban-be/internal/app/message"
 )
 
 var deleteCommandPattern = regexp.MustCompile(`^削除\s*(\d+)$`)
 
 type WebhookHandler struct {
 	client  *Client
-	queries db.Querier
+	queries db.Querier // 一覧・削除コマンドで使用（後で削除予定）
+	usecase *message.Usecase
 }
 
-func NewWebhookHandler(client *Client, queries db.Querier) *WebhookHandler {
+func NewWebhookHandler(client *Client, queries db.Querier, usecase *message.Usecase) *WebhookHandler {
 	return &WebhookHandler{
 		client:  client,
 		queries: queries,
+		usecase: usecase,
 	}
 }
 
@@ -66,18 +69,16 @@ func (h *WebhookHandler) Handle(w http.ResponseWriter, req *http.Request) {
 					return
 				}
 
-				// 通常のタスクとして保存（以下は既存の処理）
-				// メッセージをデータベースに保存 (sqlc使用)
-				savedMsg, err := h.queries.CreateMessage(ctx, db.CreateMessageParams{
-					Content: lineMessage.Text,
-					Status:  db.MessageStatusTodo,
+				// 通常のタスクとして保存（usecase経由）
+				_, err := h.usecase.CreateMessage(ctx, &message.CreateMessageRequest{
 					UserID:  userID,
+					Content: lineMessage.Text,
 				})
 				if err != nil {
 					log.Printf("メッセージ保存エラー: %v", err)
 					// 保存に失敗してもユーザーには返信を続ける
 				} else {
-					log.Printf("メッセージを保存しました: ID=%v", savedMsg.ID)
+					log.Printf("メッセージを保存しました")
 				}
 
 				// ユーザープロフィール取得
