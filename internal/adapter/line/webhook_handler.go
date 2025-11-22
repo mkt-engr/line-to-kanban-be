@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
+	"strconv"
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 
 	"line-to-kanban-be/internal/adapter/repository/db"
 )
+
+var deleteCommandPattern = regexp.MustCompile(`^削除\s*(\d+)$`)
 
 type WebhookHandler struct {
 	client  *Client
@@ -21,6 +25,10 @@ func NewWebhookHandler(client *Client, queries db.Querier) *WebhookHandler {
 		client:  client,
 		queries: queries,
 	}
+}
+
+func isCommand(text string) bool {
+	return text == "一覧" || deleteCommandPattern.MatchString(text)
 }
 
 func (h *WebhookHandler) Handle(w http.ResponseWriter, req *http.Request) {
@@ -51,46 +59,14 @@ func (h *WebhookHandler) Handle(w http.ResponseWriter, req *http.Request) {
 
 				ctx := context.Background()
 
-				// 「一覧」コマンドの処理
-				if lineMessage.Text == "一覧" {
-					// ユーザーの過去のメッセージを取得
-					messages, err := h.queries.ListMessagesByUser(ctx, userID)
-					if err != nil {
-						log.Printf("メッセージ一覧取得エラー: %v", err)
-						replyMessage := "メッセージ一覧の取得に失敗しました"
-						if _, err := h.client.GetBot().ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
-							log.Printf("返信エラー: %v", err)
-						}
-						return
-					}
-
-					// メッセージがない場合
-					if len(messages) == 0 {
-						replyMessage := "まだメッセージが登録されていません"
-						if _, err := h.client.GetBot().ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
-							log.Printf("返信エラー: %v", err)
-						}
-						return
-					}
-
-					// 箇条書きでメッセージ一覧を作成
-					var replyText string
-					replyText = "【あなたのメッセージ一覧】\n\n"
-					for i, msg := range messages {
-						// 「一覧」コマンド自体は除外
-						if msg.Content == "一覧" {
-							continue
-						}
-						replyText += fmt.Sprintf("%d. %s\n", i+1, msg.Content)
-					}
-
-					if _, err := h.client.GetBot().ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyText)).Do(); err != nil {
-						log.Printf("返信エラー: %v", err)
-					}
+				// コマンドかどうか判定
+				if isCommand(lineMessage.Text) {
+					// コマンド処理（DBに保存しない）
+					h.handleCommand(ctx, lineMessage.Text, userID, event.ReplyToken)
 					return
 				}
 
-				// 通常のメッセージ処理（「一覧」以外）
+				// 通常のタスクとして保存（以下は既存の処理）
 				// メッセージをデータベースに保存 (sqlc使用)
 				savedMsg, err := h.queries.CreateMessage(ctx, db.CreateMessageParams{
 					Content: lineMessage.Text,
@@ -131,4 +107,95 @@ func (h *WebhookHandler) Handle(w http.ResponseWriter, req *http.Request) {
 
 	// LINEへの応答（Webhookハンドラーは常に200 OKを返す必要がある）
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *WebhookHandler) handleCommand(ctx context.Context, text string, userID string, replyToken string) {
+	if text == "一覧" {
+		h.handleListCommand(ctx, userID, replyToken)
+		return
+	}
+
+	// 削除コマンド
+	if matches := deleteCommandPattern.FindStringSubmatch(text); matches != nil {
+		num, _ := strconv.Atoi(matches[1])
+		h.handleDeleteCommand(ctx, num, userID, replyToken)
+		return
+	}
+}
+
+func (h *WebhookHandler) handleListCommand(ctx context.Context, userID string, replyToken string) {
+	// ユーザーの過去のメッセージを取得
+	messages, err := h.queries.ListMessagesByUser(ctx, userID)
+	if err != nil {
+		log.Printf("メッセージ一覧取得エラー: %v", err)
+		h.replyError(replyToken, "メッセージ一覧の取得に失敗しました")
+		return
+	}
+
+	// メッセージがない場合
+	if len(messages) == 0 {
+		h.replyError(replyToken, "まだメッセージが登録されていません")
+		return
+	}
+
+	// 箇条書きでメッセージ一覧を作成
+	var replyText string
+	replyText = "【あなたのメッセージ一覧】\n\n"
+	for i, msg := range messages {
+		replyText += fmt.Sprintf("%d. %s\n", i+1, msg.Content)
+	}
+
+	if _, err := h.client.GetBot().ReplyMessage(replyToken, linebot.NewTextMessage(replyText)).Do(); err != nil {
+		log.Printf("返信エラー: %v", err)
+	}
+}
+
+func (h *WebhookHandler) handleDeleteCommand(ctx context.Context, num int, userID string, replyToken string) {
+	// バリデーション
+	if num <= 0 {
+		h.replyError(replyToken, "正しい番号を指定してください")
+		return
+	}
+
+	// ユーザーのメッセージ一覧を取得
+	messages, err := h.queries.ListMessagesByUser(ctx, userID)
+	if err != nil {
+		log.Printf("メッセージ一覧取得エラー: %v", err)
+		h.replyError(replyToken, "タスクの取得に失敗しました")
+		return
+	}
+
+	// 範囲チェック
+	index := num - 1
+	if index < 0 || index >= len(messages) {
+		h.replyError(replyToken, "指定されたタスクが見つかりません")
+		return
+	}
+
+	// 削除対象のメッセージ
+	targetMessage := messages[index]
+
+	// 削除実行
+	err = h.queries.DeleteMessage(ctx, db.DeleteMessageParams{
+		ID:     targetMessage.ID,
+		UserID: userID,
+	})
+	if err != nil {
+		log.Printf("削除エラー: %v", err)
+		h.replyError(replyToken, "削除に失敗しました")
+		return
+	}
+
+	// 成功レスポンス
+	replyMessage := fmt.Sprintf("タスク『%s』を削除しました", targetMessage.Content)
+	if _, err := h.client.GetBot().ReplyMessage(replyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
+		log.Printf("返信エラー: %v", err)
+	}
+	log.Printf("タスク削除成功: ID=%v, Content=%s", targetMessage.ID, targetMessage.Content)
+}
+
+func (h *WebhookHandler) replyError(replyToken string, message string) {
+	if _, err := h.client.GetBot().ReplyMessage(replyToken, linebot.NewTextMessage(message)).Do(); err != nil {
+		log.Printf("返信エラー: %v", err)
+	}
 }

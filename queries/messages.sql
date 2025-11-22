@@ -7,6 +7,10 @@ SELECT * FROM messages
 WHERE user_id = $1
 ORDER BY created_at DESC;
 
+-- name: DeleteMessage :exec
+DELETE FROM messages
+WHERE id = $1 AND user_id = $2;
+
 -- name: CreateMessage :one
 INSERT INTO messages (
   content, status, user_id

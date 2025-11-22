@@ -10,6 +10,7 @@ import (
 
 type Querier interface {
 	CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error)
+	DeleteMessage(ctx context.Context, arg DeleteMessageParams) error
 	GetCurrentMigrationVersion(ctx context.Context) (int32, error)
 	InsertMigrationVersion(ctx context.Context, dollar_1 int32) error
 	// -- name: GetMessage :one
