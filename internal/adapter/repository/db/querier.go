@@ -9,14 +9,14 @@ import (
 )
 
 type Querier interface {
-	CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error)
-	DeleteMessage(ctx context.Context, arg DeleteMessageParams) error
+	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)
+	DeleteTask(ctx context.Context, arg DeleteTaskParams) error
 	GetCurrentMigrationVersion(ctx context.Context) (int32, error)
 	InsertMigrationVersion(ctx context.Context, dollar_1 int32) error
-	// -- name: GetMessage :one
-	// SELECT * FROM messages
+	// -- name: GetTask :one
+	// SELECT * FROM tasks
 	// WHERE id = $1 LIMIT 1;
-	ListMessagesByUser(ctx context.Context, userID string) ([]Message, error)
+	ListTasksByUser(ctx context.Context, userID string) ([]Task, error)
 }
 
 var _ Querier = (*Queries)(nil)

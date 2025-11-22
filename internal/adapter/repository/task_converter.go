@@ -8,28 +8,28 @@ import (
 	"line-to-kanban-be/internal/domain/task"
 )
 
-// sqlcのdb.MessageからdomainのTaskに変換
-func toTask(dbMsg db.Message) *task.Task {
+// sqlcのdb.TaskからdomainのTaskに変換
+func toTask(dbTask db.Task) *task.Task {
 	// pgtype.UUIDをstring(UUID)に変換
 	var idStr string
-	if dbMsg.ID.Valid {
-		u, _ := uuid.FromBytes(dbMsg.ID.Bytes[:])
+	if dbTask.ID.Valid {
+		u, _ := uuid.FromBytes(dbTask.ID.Bytes[:])
 		idStr = u.String()
 	}
 
 	return &task.Task{
 		ID:        idStr,
-		UserID:    dbMsg.UserID,
-		Content:   dbMsg.Content,
-		Status:    task.Status(dbMsg.Status),
-		CreatedAt: dbMsg.CreatedAt.Time,
-		UpdatedAt: dbMsg.UpdatedAt.Time,
+		UserID:    dbTask.UserID,
+		Content:   dbTask.Content,
+		Status:    task.Status(dbTask.Status),
+		CreatedAt: dbTask.CreatedAt.Time,
+		UpdatedAt: dbTask.UpdatedAt.Time,
 	}
 }
 
-// domainのTaskからsqlcのdb.MessageStatusに変換
-func toDBStatus(status task.Status) db.MessageStatus {
-	return db.MessageStatus(status)
+// domainのTaskからsqlcのdb.TaskStatusに変換
+func toDBStatus(status task.Status) db.TaskStatus {
+	return db.TaskStatus(status)
 }
 
 // stringからpgtype.UUIDに変換

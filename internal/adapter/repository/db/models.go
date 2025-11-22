@@ -11,59 +11,59 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type MessageStatus string
+type TaskStatus string
 
 const (
-	MessageStatusTodo       MessageStatus = "todo"
-	MessageStatusInProgress MessageStatus = "in_progress"
-	MessageStatusDone       MessageStatus = "done"
+	TaskStatusTodo       TaskStatus = "todo"
+	TaskStatusInProgress TaskStatus = "in_progress"
+	TaskStatusDone       TaskStatus = "done"
 )
 
-func (e *MessageStatus) Scan(src interface{}) error {
+func (e *TaskStatus) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = MessageStatus(s)
+		*e = TaskStatus(s)
 	case string:
-		*e = MessageStatus(s)
+		*e = TaskStatus(s)
 	default:
-		return fmt.Errorf("unsupported scan type for MessageStatus: %T", src)
+		return fmt.Errorf("unsupported scan type for TaskStatus: %T", src)
 	}
 	return nil
 }
 
-type NullMessageStatus struct {
-	MessageStatus MessageStatus `json:"message_status"`
-	Valid         bool          `json:"valid"` // Valid is true if MessageStatus is not NULL
+type NullTaskStatus struct {
+	TaskStatus TaskStatus `json:"task_status"`
+	Valid      bool       `json:"valid"` // Valid is true if TaskStatus is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullMessageStatus) Scan(value interface{}) error {
+func (ns *NullTaskStatus) Scan(value interface{}) error {
 	if value == nil {
-		ns.MessageStatus, ns.Valid = "", false
+		ns.TaskStatus, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.MessageStatus.Scan(value)
+	return ns.TaskStatus.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullMessageStatus) Value() (driver.Value, error) {
+func (ns NullTaskStatus) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.MessageStatus), nil
-}
-
-type Message struct {
-	ID        pgtype.UUID      `json:"id"`
-	Content   string           `json:"content"`
-	Status    MessageStatus    `json:"status"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
-	UpdatedAt pgtype.Timestamp `json:"updated_at"`
-	UserID    string           `json:"user_id"`
+	return string(ns.TaskStatus), nil
 }
 
 type SchemaMigration struct {
 	Version int32 `json:"version"`
 	Dirty   bool  `json:"dirty"`
+}
+
+type Task struct {
+	ID        pgtype.UUID      `json:"id"`
+	Content   string           `json:"content"`
+	Status    TaskStatus       `json:"status"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
+	UserID    string           `json:"user_id"`
 }

@@ -8,7 +8,7 @@ import (
 )
 
 func (r *TaskRepository) Save(ctx context.Context, t *task.Task) error {
-	_, err := r.queries.CreateMessage(ctx, db.CreateMessageParams{
+	_, err := r.queries.CreateTask(ctx, db.CreateTaskParams{
 		Content: t.Content,
 		Status:  toDBStatus(t.Status),
 		UserID:  t.UserID,
@@ -23,7 +23,7 @@ func (r *TaskRepository) UpdateStatus(ctx context.Context, id string, status tas
 }
 
 func (r *TaskRepository) Delete(ctx context.Context, id string, userID string) error {
-	return r.queries.DeleteMessage(ctx, db.DeleteMessageParams{
+	return r.queries.DeleteTask(ctx, db.DeleteTaskParams{
 		ID:     toUUID(id),
 		UserID: userID,
 	})

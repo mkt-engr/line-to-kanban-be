@@ -13,14 +13,14 @@ func (r *TaskRepository) FindByID(ctx context.Context, id string) (*task.Task, e
 }
 
 func (r *TaskRepository) FindByUserID(ctx context.Context, userID string) ([]*task.Task, error) {
-	dbMessages, err := r.queries.ListMessagesByUser(ctx, userID)
+	dbTasks, err := r.queries.ListTasksByUser(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	tasks := make([]*task.Task, len(dbMessages))
-	for i, dbMsg := range dbMessages {
-		tasks[i] = toTask(dbMsg)
+	tasks := make([]*task.Task, len(dbTasks))
+	for i, dbTask := range dbTasks {
+		tasks[i] = toTask(dbTask)
 	}
 
 	return tasks, nil
