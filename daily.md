@@ -60,10 +60,13 @@ webhook_handler → usecase → repository → sqlc → DB
    - `internal/adapter/line/webhook_handler.go`: 一覧・削除処理をusecase経由に変更
    - queriesフィールドを完全に削除し、全てのDB操作がusecase経由に統一
 
-7. usecase層のファイル分割:
-   - `usecase.go`: 構造体定義とコンストラクタ（15行）
-   - `usecase_read.go`: Read系メソッド - ListMessagesByUser（約20行）
-   - `usecase_write.go`: Write系メソッド - CreateMessage, UpdateMessageStatus, DeleteMessage（約25行）
+7. usecase層のファイル分割とディレクトリ構成の統一:
+   - `internal/app/message/` → `internal/app/usecase/` にリネーム
+   - `message.go`: MessageUsecase構造体定義とコンストラクタ（15行）
+   - `message_read.go`: Read系メソッド - ListMessagesByUser（約20行）
+   - `message_write.go`: Write系メソッド - CreateMessage, UpdateMessageStatus, DeleteMessage（約25行）
+   - `message_dto.go`: DTO定義（約30行）
+   - repository層と統一した命名規則（ディレクトリ名=役割、ファイル名=機能）
 
 次回対応予定:
 - ステータス更新機能の実装

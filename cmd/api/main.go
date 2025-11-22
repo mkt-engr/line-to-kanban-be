@@ -13,7 +13,7 @@ import (
 	lineAdapter "line-to-kanban-be/internal/adapter/line"
 	"line-to-kanban-be/internal/adapter/repository"
 	"line-to-kanban-be/internal/adapter/repository/db"
-	"line-to-kanban-be/internal/app/message"
+	"line-to-kanban-be/internal/app/usecase"
 	"line-to-kanban-be/internal/platform/config"
 	"line-to-kanban-be/internal/platform/database"
 	"line-to-kanban-be/internal/platform/logger"
@@ -73,7 +73,7 @@ func main() {
 	messageRepo := repository.NewMessageRepository(queries)
 
 	// Usecase層の初期化
-	messageUsecase := message.NewUsecase(messageRepo)
+	messageUsecase := usecase.NewMessageUsecase(messageRepo)
 
 	// LINE Webhookハンドラーの初期化
 	lineWebhookHandler := lineAdapter.NewWebhookHandler(lineClient, messageUsecase)

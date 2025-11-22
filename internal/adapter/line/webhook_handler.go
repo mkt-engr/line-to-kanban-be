@@ -10,20 +10,20 @@ import (
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 
-	"line-to-kanban-be/internal/app/message"
+	"line-to-kanban-be/internal/app/usecase"
 )
 
 var deleteCommandPattern = regexp.MustCompile(`^削除\s*(\d+)$`)
 
 type WebhookHandler struct {
 	client  *Client
-	usecase *message.Usecase
+	usecase *usecase.MessageUsecase
 }
 
-func NewWebhookHandler(client *Client, usecase *message.Usecase) *WebhookHandler {
+func NewWebhookHandler(client *Client, msgUsecase *usecase.MessageUsecase) *WebhookHandler {
 	return &WebhookHandler{
 		client:  client,
-		usecase: usecase,
+		usecase: msgUsecase,
 	}
 }
 
@@ -67,7 +67,7 @@ func (h *WebhookHandler) Handle(w http.ResponseWriter, req *http.Request) {
 				}
 
 				// 通常のタスクとして保存（usecase経由）
-				_, err := h.usecase.CreateMessage(ctx, &message.CreateMessageRequest{
+				_, err := h.usecase.CreateMessage(ctx, &usecase.CreateMessageRequest{
 					UserID:  userID,
 					Content: lineMessage.Text,
 				})
