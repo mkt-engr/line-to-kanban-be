@@ -6,6 +6,31 @@
 
 LINEからタスクを削除する機能を実装しました。その後、クリーンアーキテクチャを採用し、タスク作成機能をusecase経由にリファクタリングしました。さらに、保守性向上のためrepository層を4ファイルに分割しました。最後に、将来のマルチプラットフォーム対応を見据えて、message→taskへのリネームを実施しました。
 
+### DBマイグレーションのトラブルシューティング
+
+#### 問題: マイグレーション003が失敗
+
+エラー内容:
+```
+ERROR: type "message_status" does not exist (SQLSTATE 42704)
+ERROR: unimplemented: ALTER TYPE usage inside a function definition is not supported (SQLSTATE 0A000)
+```
+
+原因:
+1. ローカルで`./app`実行時、DBが既に`tasks`テーブルになっていた
+2. マイグレーション003は`messages`→`tasks`にリネームしようとしたが、既に存在しない
+3. CockroachDBは`DO $$ ... END $$`ブロック内で`ALTER TYPE`をサポートしていない
+
+解決策:
+- マイグレーション003を空の状態（`SELECT 1;`のみ）に変更
+- DBスキーマは既に正しい状態（`tasks`テーブル）なので、マイグレーション番号の記録のみが必要
+- 将来の新環境でのセットアップ手順をコメントに記載
+
+教訓:
+- CockroachDBはPostgreSQLと100%互換ではない（PL/pgSQL機能に制限あり）
+- マイグレーションは冪等性を持たせるべき（`IF EXISTS`チェック等）
+- ただしCockroachDBでは条件分岐DDLに制限があるため、別のアプローチが必要
+
 ### Message→Taskリネームの設計思想
 
 #### なぜ"message"から"task"にリネームするのか
