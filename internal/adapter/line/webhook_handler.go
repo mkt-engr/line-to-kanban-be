@@ -17,13 +17,13 @@ var deleteCommandPattern = regexp.MustCompile(`^削除\s*(\d+)$`)
 
 type WebhookHandler struct {
 	client  *Client
-	usecase *usecase.MessageUsecase
+	usecase *usecase.TaskUsecase
 }
 
-func NewWebhookHandler(client *Client, msgUsecase *usecase.MessageUsecase) *WebhookHandler {
+func NewWebhookHandler(client *Client, taskUsecase *usecase.TaskUsecase) *WebhookHandler {
 	return &WebhookHandler{
 		client:  client,
-		usecase: msgUsecase,
+		usecase: taskUsecase,
 	}
 }
 
@@ -67,7 +67,7 @@ func (h *WebhookHandler) Handle(w http.ResponseWriter, req *http.Request) {
 				}
 
 				// 通常のタスクとして保存（usecase経由）
-				_, err := h.usecase.CreateMessage(ctx, &usecase.CreateMessageRequest{
+				_, err := h.usecase.CreateTask(ctx, &usecase.CreateTaskRequest{
 					UserID:  userID,
 					Content: lineMessage.Text,
 				})
@@ -122,25 +122,25 @@ func (h *WebhookHandler) handleCommand(ctx context.Context, text string, userID 
 }
 
 func (h *WebhookHandler) handleListCommand(ctx context.Context, userID string, replyToken string) {
-	// ユーザーの過去のメッセージを取得（usecase経由）
-	messages, err := h.usecase.ListMessagesByUser(ctx, userID)
+	// ユーザーのタスク一覧を取得（usecase経由）
+	tasks, err := h.usecase.ListTasksByUser(ctx, userID)
 	if err != nil {
-		log.Printf("メッセージ一覧取得エラー: %v", err)
-		h.replyError(replyToken, "メッセージ一覧の取得に失敗しました")
+		log.Printf("タスク一覧取得エラー: %v", err)
+		h.replyError(replyToken, "タスク一覧の取得に失敗しました")
 		return
 	}
 
-	// メッセージがない場合
-	if len(messages) == 0 {
-		h.replyError(replyToken, "まだメッセージが登録されていません")
+	// タスクがない場合
+	if len(tasks) == 0 {
+		h.replyError(replyToken, "まだタスクが登録されていません")
 		return
 	}
 
-	// 箇条書きでメッセージ一覧を作成
+	// 箇条書きでタスク一覧を作成
 	var replyText string
-	replyText = "【あなたのメッセージ一覧】\n\n"
-	for i, msg := range messages {
-		replyText += fmt.Sprintf("%d. %s\n", i+1, msg.Content)
+	replyText = "【あなたのタスク一覧】\n\n"
+	for i, task := range tasks {
+		replyText += fmt.Sprintf("%d. %s\n", i+1, task.Content)
 	}
 
 	if _, err := h.client.GetBot().ReplyMessage(replyToken, linebot.NewTextMessage(replyText)).Do(); err != nil {
@@ -155,26 +155,26 @@ func (h *WebhookHandler) handleDeleteCommand(ctx context.Context, num int, userI
 		return
 	}
 
-	// ユーザーのメッセージ一覧を取得（usecase経由）
-	messages, err := h.usecase.ListMessagesByUser(ctx, userID)
+	// ユーザーのタスク一覧を取得（usecase経由）
+	tasks, err := h.usecase.ListTasksByUser(ctx, userID)
 	if err != nil {
-		log.Printf("メッセージ一覧取得エラー: %v", err)
+		log.Printf("タスク一覧取得エラー: %v", err)
 		h.replyError(replyToken, "タスクの取得に失敗しました")
 		return
 	}
 
 	// 範囲チェック
 	index := num - 1
-	if index < 0 || index >= len(messages) {
+	if index < 0 || index >= len(tasks) {
 		h.replyError(replyToken, "指定されたタスクが見つかりません")
 		return
 	}
 
-	// 削除対象のメッセージ
-	targetMessage := messages[index]
+	// 削除対象のタスク
+	targetTask := tasks[index]
 
 	// 削除実行（usecase経由）
-	err = h.usecase.DeleteMessage(ctx, targetMessage.ID, userID)
+	err = h.usecase.DeleteTask(ctx, targetTask.ID, userID)
 	if err != nil {
 		log.Printf("削除エラー: %v", err)
 		h.replyError(replyToken, "削除に失敗しました")
@@ -182,11 +182,11 @@ func (h *WebhookHandler) handleDeleteCommand(ctx context.Context, num int, userI
 	}
 
 	// 成功レスポンス
-	replyMessage := fmt.Sprintf("タスク『%s』を削除しました", targetMessage.Content)
+	replyMessage := fmt.Sprintf("タスク『%s』を削除しました", targetTask.Content)
 	if _, err := h.client.GetBot().ReplyMessage(replyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
 		log.Printf("返信エラー: %v", err)
 	}
-	log.Printf("タスク削除成功: ID=%v, Content=%s", targetMessage.ID, targetMessage.Content)
+	log.Printf("タスク削除成功: ID=%v, Content=%s", targetTask.ID, targetTask.Content)
 }
 
 func (h *WebhookHandler) replyError(replyToken string, message string) {

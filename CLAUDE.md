@@ -12,15 +12,15 @@ line-to-kanban-be/
 │       └── main.go              # エントリーポイント（DI・サーバー起動）
 ├── internal/
 │   ├── domain/                  # ドメイン層（ビジネスロジック、依存なし）
-│   │   └── message/
-│   │       ├── entity.go        # メッセージエンティティ
+│   │   └── task/
+│   │       ├── entity.go        # タスクエンティティ
 │   │       └── repository.go    # リポジトリインターフェース
 │   ├── app/                     # ユースケース層（アプリケーションロジック）
 │   │   └── usecase/
-│   │       ├── message.go       # MessageUsecase構造体定義
-│   │       ├── message_read.go  # Read系ユースケース
-│   │       ├── message_write.go # Write系ユースケース
-│   │       └── message_dto.go   # 入出力DTO
+│   │       ├── task.go          # TaskUsecase構造体定義
+│   │       ├── task_read.go     # Read系ユースケース
+│   │       ├── task_write.go    # Write系ユースケース
+│   │       └── task_dto.go      # 入出力DTO
 │   ├── adapter/                 # アダプター層（外部I/O実装）
 │   │   ├── http/
 │   │   │   ├── router.go                # ルーティング設定
@@ -29,10 +29,10 @@ line-to-kanban-be/
 │   │   │   ├── client.go                # LINE Bot クライアント
 │   │   │   └── webhook_handler.go       # LINE Webhook処理
 │   │   └── repository/
-│   │       ├── message_repository.go    # リポジトリ構造体定義
-│   │       ├── message_read.go          # Read系メソッド（FindByID, FindByUserID）
-│   │       ├── message_write.go         # Write系メソッド（Save, UpdateStatus, Delete）
-│   │       ├── message_converter.go     # 型変換（domain ⇔ DB）
+│   │       ├── task_repository.go       # リポジトリ構造体定義
+│   │       ├── task_read.go             # Read系メソッド（FindByID, FindByUserID）
+│   │       ├── task_write.go            # Write系メソッド（Save, UpdateStatus, Delete）
+│   │       ├── task_converter.go        # 型変換（domain ⇔ DB）
 │   │       └── db/                      # sqlc生成コード
 │   │           ├── models.go
 │   │           ├── messages.sql.go
@@ -63,24 +63,24 @@ adapter → app → domain
 repository層とusecase層は機能ごとにファイルを分割し、Goの標準的なテスト規約に準拠：
 
 Repository層のファイル構成:
-- message_repository.go: 構造体定義とコンストラクタ（15行）
-- message_read.go: Read系メソッド（約30行）
-- message_write.go: Write系メソッド（約30行）
-- message_converter.go: 型変換関数（約35行）
+- task_repository.go: 構造体定義とコンストラクタ（15行）
+- task_read.go: Read系メソッド（約30行）
+- task_write.go: Write系メソッド（約30行）
+- task_converter.go: 型変換関数（約35行）
 
 Usecase層のファイル構成:
-- message.go: MessageUsecase構造体定義とコンストラクタ（15行）
-- message_read.go: Read系ユースケース（約20行）
-- message_write.go: Write系ユースケース（約25行）
-- message_dto.go: DTO定義（約30行）
+- task.go: TaskUsecase構造体定義とコンストラクタ（15行）
+- task_read.go: Read系ユースケース（約20行）
+- task_write.go: Write系ユースケース（約25行）
+- task_dto.go: DTO定義（約30行）
 
 設計方針:
 - 各ファイル15-40行程度で管理しやすく保つ
-- テストファイルは_testサフィックス（例: message_read_test.go）
+- テストファイルは_testサフィックス（例: task_read_test.go）
 - 1ファイルに全メソッドを含めると将来的に100-200行超になるため分割
 - Read/Write分割により、関連する機能をグループ化
 - repository層とusecase層で統一したパターンを採用
-- ディレクトリ名は役割（repository, usecase）、ファイル名に機能名（message_）を含める
+- ディレクトリ名は役割（repository, usecase）、ファイル名に機能名（task_）を含める
 
 ## API エンドポイント
 
@@ -117,7 +117,7 @@ curl http://localhost:8080/healthz      # ヘルスチェック
 
 ## 依存関係
 
-- `github.com/google/uuid` - UUID 生成（メッセージ ID 用）
+- `github.com/google/uuid` - UUID 生成（タスク ID 用）
 - `github.com/line/line-bot-sdk-go/v7` - LINE Bot SDK
 - `github.com/jackc/pgx/v5` - PostgreSQL ドライバー
 - `github.com/joho/godotenv` - 環境変数読み込み

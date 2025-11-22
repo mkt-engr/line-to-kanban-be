@@ -4,12 +4,12 @@ import (
 	"line-to-kanban-be/internal/adapter/repository/db"
 )
 
-type MessageRepository struct {
+type TaskRepository struct {
 	queries db.Querier
 }
 
-func NewMessageRepository(queries db.Querier) *MessageRepository {
-	return &MessageRepository{
+func NewTaskRepository(queries db.Querier) *TaskRepository {
+	return &TaskRepository{
 		queries: queries,
 	}
 }

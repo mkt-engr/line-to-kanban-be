@@ -1,4 +1,4 @@
-package message
+package task
 
 import (
 	"time"
@@ -14,7 +14,7 @@ const (
 	StatusDone       Status = "done"
 )
 
-type Message struct {
+type Task struct {
 	ID        string
 	UserID    string
 	Content   string
@@ -23,9 +23,9 @@ type Message struct {
 	UpdatedAt time.Time
 }
 
-func NewMessage(userID, content string) *Message {
+func NewTask(userID, content string) *Task {
 	now := time.Now()
-	return &Message{
+	return &Task{
 		ID:        uuid.New().String(),
 		UserID:    userID,
 		Content:   content,

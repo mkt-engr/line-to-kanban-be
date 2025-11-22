@@ -5,11 +5,11 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"line-to-kanban-be/internal/adapter/repository/db"
-	"line-to-kanban-be/internal/domain/message"
+	"line-to-kanban-be/internal/domain/task"
 )
 
-// sqlcのdb.MessageからdomainのMessageに変換
-func toMessage(dbMsg db.Message) *message.Message {
+// sqlcのdb.MessageからdomainのTaskに変換
+func toTask(dbMsg db.Message) *task.Task {
 	// pgtype.UUIDをstring(UUID)に変換
 	var idStr string
 	if dbMsg.ID.Valid {
@@ -17,18 +17,18 @@ func toMessage(dbMsg db.Message) *message.Message {
 		idStr = u.String()
 	}
 
-	return &message.Message{
+	return &task.Task{
 		ID:        idStr,
 		UserID:    dbMsg.UserID,
 		Content:   dbMsg.Content,
-		Status:    message.Status(dbMsg.Status),
+		Status:    task.Status(dbMsg.Status),
 		CreatedAt: dbMsg.CreatedAt.Time,
 		UpdatedAt: dbMsg.UpdatedAt.Time,
 	}
 }
 
-// domainのMessageからsqlcのdb.MessageStatusに変換
-func toDBStatus(status message.Status) db.MessageStatus {
+// domainのTaskからsqlcのdb.MessageStatusに変換
+func toDBStatus(status task.Status) db.MessageStatus {
 	return db.MessageStatus(status)
 }
 

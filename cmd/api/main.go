@@ -70,13 +70,13 @@ func main() {
 	queries := db.New(dbPool)
 
 	// Repository層の初期化
-	messageRepo := repository.NewMessageRepository(queries)
+	taskRepo := repository.NewTaskRepository(queries)
 
 	// Usecase層の初期化
-	messageUsecase := usecase.NewMessageUsecase(messageRepo)
+	taskUsecase := usecase.NewTaskUsecase(taskRepo)
 
 	// LINE Webhookハンドラーの初期化
-	lineWebhookHandler := lineAdapter.NewWebhookHandler(lineClient, messageUsecase)
+	lineWebhookHandler := lineAdapter.NewWebhookHandler(lineClient, taskUsecase)
 	appLogger.Info("Webhook handler initialized successfully")
 
 	// ルーターの作成

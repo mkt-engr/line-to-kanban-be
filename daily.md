@@ -4,7 +4,149 @@
 
 ### 概要
 
-LINEからタスクを削除する機能を実装しました。その後、クリーンアーキテクチャを採用し、タスク作成機能をusecase経由にリファクタリングしました。さらに、保守性向上のためrepository層を4ファイルに分割しました。
+LINEからタスクを削除する機能を実装しました。その後、クリーンアーキテクチャを採用し、タスク作成機能をusecase経由にリファクタリングしました。さらに、保守性向上のためrepository層を4ファイルに分割しました。最後に、将来のマルチプラットフォーム対応を見据えて、message→taskへのリネームを実施しました。
+
+### Message→Taskリネームの設計思想
+
+#### なぜ"message"から"task"にリネームするのか
+
+当初は「LINEメッセージ」として実装していましたが、本質的にはカンバンで管理する「タスク」です。将来的にSlackやDiscordと連携する際、以下の問題が発生します:
+
+問題点:
+- LINE: Messageと呼ぶ
+- Slack: Messageと呼ぶ
+- Discord: Messageと呼ぶ
+- カンバン: Messageと呼ぶ？ → 混乱
+
+正しいドメインモデル:
+- LINEメッセージ: プラットフォーム固有の概念
+- Slackメッセージ: プラットフォーム固有の概念
+- Discordメッセージ: プラットフォーム固有の概念
+- タスク: カンバンのドメイン概念（プラットフォーム非依存）
+
+#### クリーンアーキテクチャにおける役割分担
+
+```
+┌─────────────────────────────────────────┐
+│ Adapter層（プラットフォーム固有）         │
+├─────────────────────────────────────────┤
+│ LINE: webhook_handler.go                │
+│   - LINE Webhook受信・パース             │
+│   - LINE形式で返信                       │
+│                                         │
+│ Slack: slack_handler.go (将来)          │
+│   - Slack Event API受信・パース          │
+│   - Slack形式で返信                      │
+│                                         │
+│ Discord: discord_handler.go (将来)      │
+│   - Discord Webhook受信・パース          │
+│   - Discord形式で返信                    │
+└─────────────────────────────────────────┘
+             ↓ CreateTaskRequest
+┌─────────────────────────────────────────┐
+│ Usecase層（ビジネスロジック）            │
+├─────────────────────────────────────────┤
+│ TaskUsecase                             │
+│   - CreateTask()                        │
+│   - ListTasksByUser()                   │
+│   - DeleteTask()                        │
+│                                         │
+│ ビジネスルール:                          │
+│   - タスクを作成する                     │
+│   - ユーザーのタスク一覧を取得する        │
+│   - 自分のタスクのみ削除できる            │
+└─────────────────────────────────────────┘
+             ↓
+┌─────────────────────────────────────────┐
+│ Repository層（データ永続化）             │
+├─────────────────────────────────────────┤
+│ TaskRepository                          │
+│   - Save()                              │
+│   - FindByUserID()                      │
+│   - Delete()                            │
+└─────────────────────────────────────────┘
+             ↓
+┌─────────────────────────────────────────┐
+│ Domain層（エンティティ）                 │
+├─────────────────────────────────────────┤
+│ Task                                    │
+│   - ID                                  │
+│   - UserID                              │
+│   - Content                             │
+│   - Status (todo/in_progress/done)      │
+└─────────────────────────────────────────┘
+```
+
+#### なぜ同じUsecaseが使えるのか
+
+LINEとSlackで受信フォーマットは異なりますが、ビジネスロジックは同じです:
+
+LINE Adapterの処理:
+```go
+// 1. LINE形式のWebhookをパース
+events, err := h.client.GetBot().ParseRequest(req)
+userID := event.Source.UserID
+content := lineMessage.Text
+
+// 2. プラットフォーム非依存の形式に変換
+createReq := &usecase.CreateTaskRequest{
+    UserID:  userID,
+    Content: content,
+}
+
+// 3. 共通のUsecaseを呼ぶ
+_, err := h.usecase.CreateTask(ctx, createReq)
+
+// 4. LINE形式で返信
+h.client.GetBot().ReplyMessage(...)
+```
+
+Slack Adapterの処理（将来）:
+```go
+// 1. Slack形式のWebhookをパース（LINEと異なる）
+payload, err := slack.ParseWebhook(req)
+userID := payload.Event.User
+content := payload.Event.Text
+
+// 2. プラットフォーム非依存の形式に変換（同じDTO）
+createReq := &usecase.CreateTaskRequest{
+    UserID:  userID,
+    Content: content,
+}
+
+// 3. 共通のUsecaseを呼ぶ（LINEと同じ）
+_, err := h.usecase.CreateTask(ctx, createReq)
+
+// 4. Slack形式で返信（LINEと異なる）
+slack.PostMessage(...)
+```
+
+違う部分:
+- Webhook受信・パース（各プラットフォーム固有）
+- 返信形式（各プラットフォーム固有）
+
+同じ部分:
+- ビジネスロジック（TaskUsecase.CreateTask）
+- データ永続化（TaskRepository.Save）
+- ドメインモデル（Task エンティティ）
+
+#### 設計の利点
+
+1. 新しいプラットフォーム追加が容易
+   - Adapter層に新しいハンドラーを追加するだけ
+   - Usecase/Repository/Domainは変更不要
+
+2. ビジネスロジックの一貫性
+   - どのプラットフォームから来ても同じルールが適用される
+   - タスク作成・削除のロジックが一箇所に集約
+
+3. テストの容易性
+   - Usecaseをモックしてプラットフォーム固有のテストが書ける
+   - ビジネスロジックのテストはプラットフォームから独立
+
+4. 保守性の向上
+   - 依存関係が明確（Adapter → Usecase → Repository → Domain）
+   - 各層の責務が明確に分離
 
 ### クリーンアーキテクチャへのリファクタリング
 
