@@ -4,7 +4,7 @@
 
 ### 概要
 
-LINEからタスクを削除する機能を実装しました。その後、クリーンアーキテクチャを採用し、タスク作成機能をusecase経由に リファクタリングしました。
+LINEからタスクを削除する機能を実装しました。その後、クリーンアーキテクチャを採用し、タスク作成機能をusecase経由にリファクタリングしました。さらに、保守性向上のためrepository層を4ファイルに分割しました。
 
 ### 完了したタスク
 
@@ -56,8 +56,70 @@ webhook_handler → usecase → repository → sqlc → DB
 - 保守性: DB変更時はrepository層のみ修正すれば良い
 
 次回対応予定:
-- 一覧表示コマンドのusecase化
-- 削除コマンドのusecase化
+- ステータス更新機能の実装
+
+#### 4. 一覧表示・削除機能のusecase化とusecase層の分割
+
+一覧表示と削除機能をusecase経由に変更し、さらにusecase層もrepositoryと同じパターンで分割しました。
+
+実装内容:
+
+1. usecaseに新しいメソッドを追加:
+   - `ListMessagesByUser`: ユーザーのメッセージ一覧を取得
+   - `DeleteMessage`: メッセージを削除
+
+2. webhook_handlerをusecase経由に変更:
+   - `handleListCommand`: queries.ListMessagesByUser → usecase.ListMessagesByUser
+   - `handleDeleteCommand`: queries.DeleteMessage → usecase.DeleteMessage
+   - queriesフィールドを完全に削除
+
+3. usecase層のファイル分割:
+   - `usecase.go`: 構造体定義とコンストラクタ（15行）
+   - `usecase_read.go`: Read系メソッド - ListMessagesByUser（約20行）
+   - `usecase_write.go`: Write系メソッド - CreateMessage, UpdateMessageStatus, DeleteMessage（約25行）
+
+メリット:
+- 全てのDB操作がusecase経由に統一された
+- repository層と同じパターンで分割し、一貫性が向上
+- 各ファイルが15-25行程度で非常に読みやすい
+- テストが書きやすい構造
+
+#### 3. リポジトリ層のファイル分割
+
+保守性向上のため、repository層を機能ごとに4ファイルに分割しました。
+
+実装内容:
+
+1. message_repository.goの分割:
+   - 元の103行のファイルを4つに分割
+   - 将来的に全メソッド実装で200行超になることを防ぐ
+
+2. 新しいファイル構成:
+   - `message_repository.go`: 構造体定義とコンストラクタ（15行）
+   - `message_read.go`: Read系メソッド - FindByID, FindByUserID（約30行）
+   - `message_write.go`: Write系メソッド - Save, UpdateStatus, Delete（約30行）
+   - `message_converter.go`: 型変換関数 - toMessage, toDBStatus, toUUID（約35行）
+
+3. 不要なメソッドを削除:
+   - `FindAll`メソッドを削除（使用予定なし）
+   - `GetAllMessages`ユースケースを削除
+
+4. 設計方針:
+   - 各ファイル15-40行程度で管理しやすく保つ
+   - テストファイルは_testサフィックス（例: message_read_test.go）
+   - Goの標準的なテスト規約に準拠
+   - Read/Write分割により、関連する機能をグループ化
+
+5. CLAUDE.mdの更新:
+   - ディレクトリ構成を実際の構造に合わせて更新
+   - リポジトリ層のファイル分割の設計方針を追記
+   - データベースと環境変数の情報を追加
+
+メリット:
+- 各ファイルが小さく、理解しやすい
+- テストが書きやすい（機能ごとにテストファイルを分割可能）
+- 将来的なメソッド追加でもファイルサイズが適切に保たれる
+- Git差分が見やすい（関連する変更が同じファイルに集約）
 
 #### 1. 削除機能の実装
 

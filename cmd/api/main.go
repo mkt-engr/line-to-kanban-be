@@ -75,8 +75,8 @@ func main() {
 	// Usecase層の初期化
 	messageUsecase := message.NewUsecase(messageRepo)
 
-	// LINE Webhookハンドラーの初期化（queries は一覧・削除コマンドで一時的に使用）
-	lineWebhookHandler := lineAdapter.NewWebhookHandler(lineClient, queries, messageUsecase)
+	// LINE Webhookハンドラーの初期化
+	lineWebhookHandler := lineAdapter.NewWebhookHandler(lineClient, messageUsecase)
 	appLogger.Info("Webhook handler initialized successfully")
 
 	// ルーターの作成

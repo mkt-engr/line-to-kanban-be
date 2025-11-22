@@ -17,7 +17,9 @@ line-to-kanban-be/
 │   │       └── repository.go    # リポジトリインターフェース
 │   ├── app/                     # ユースケース層（アプリケーションロジック）
 │   │   └── message/
-│   │       ├── usecase.go       # メッセージ処理のユースケース
+│   │       ├── usecase.go       # Usecase構造体定義
+│   │       ├── usecase_read.go  # Read系ユースケース
+│   │       ├── usecase_write.go # Write系ユースケース
 │   │       └── dto.go           # 入出力DTO
 │   ├── adapter/                 # アダプター層（外部I/O実装）
 │   │   ├── http/
@@ -56,21 +58,27 @@ adapter → app → domain
 - adapter 層: 外部 I/O（HTTP、DB 等）の実装。app と domain に依存
 - platform 層: 設定やロガーなど横断的な機能
 
-### リポジトリ層のファイル分割
+### ファイル分割の設計方針
 
-repository層は機能ごとにファイルを分割し、Goの標準的なテスト規約に準拠：
+repository層とusecase層は機能ごとにファイルを分割し、Goの標準的なテスト規約に準拠：
 
-ファイル構成:
+Repository層のファイル構成:
 - message_repository.go: 構造体定義とコンストラクタ（15行）
 - message_read.go: Read系メソッド（約30行）
 - message_write.go: Write系メソッド（約30行）
 - message_converter.go: 型変換関数（約35行）
 
+Usecase層のファイル構成:
+- usecase.go: Usecase構造体定義とコンストラクタ（15行）
+- usecase_read.go: Read系ユースケース（約20行）
+- usecase_write.go: Write系ユースケース（約25行）
+
 設計方針:
 - 各ファイル15-40行程度で管理しやすく保つ
 - テストファイルは_testサフィックス（例: message_read_test.go）
-- 1ファイルに全メソッドを含めると将来的に200行超になるため分割
+- 1ファイルに全メソッドを含めると将来的に100-200行超になるため分割
 - Read/Write分割により、関連する機能をグループ化
+- repository層とusecase層で統一したパターンを採用
 
 ## API エンドポイント
 

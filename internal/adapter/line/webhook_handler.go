@@ -10,7 +10,6 @@ import (
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 
-	"line-to-kanban-be/internal/adapter/repository/db"
 	"line-to-kanban-be/internal/app/message"
 )
 
@@ -18,14 +17,12 @@ var deleteCommandPattern = regexp.MustCompile(`^削除\s*(\d+)$`)
 
 type WebhookHandler struct {
 	client  *Client
-	queries db.Querier // 一覧・削除コマンドで使用（後で削除予定）
 	usecase *message.Usecase
 }
 
-func NewWebhookHandler(client *Client, queries db.Querier, usecase *message.Usecase) *WebhookHandler {
+func NewWebhookHandler(client *Client, usecase *message.Usecase) *WebhookHandler {
 	return &WebhookHandler{
 		client:  client,
-		queries: queries,
 		usecase: usecase,
 	}
 }
@@ -125,8 +122,8 @@ func (h *WebhookHandler) handleCommand(ctx context.Context, text string, userID 
 }
 
 func (h *WebhookHandler) handleListCommand(ctx context.Context, userID string, replyToken string) {
-	// ユーザーの過去のメッセージを取得
-	messages, err := h.queries.ListMessagesByUser(ctx, userID)
+	// ユーザーの過去のメッセージを取得（usecase経由）
+	messages, err := h.usecase.ListMessagesByUser(ctx, userID)
 	if err != nil {
 		log.Printf("メッセージ一覧取得エラー: %v", err)
 		h.replyError(replyToken, "メッセージ一覧の取得に失敗しました")
@@ -158,8 +155,8 @@ func (h *WebhookHandler) handleDeleteCommand(ctx context.Context, num int, userI
 		return
 	}
 
-	// ユーザーのメッセージ一覧を取得
-	messages, err := h.queries.ListMessagesByUser(ctx, userID)
+	// ユーザーのメッセージ一覧を取得（usecase経由）
+	messages, err := h.usecase.ListMessagesByUser(ctx, userID)
 	if err != nil {
 		log.Printf("メッセージ一覧取得エラー: %v", err)
 		h.replyError(replyToken, "タスクの取得に失敗しました")
@@ -176,11 +173,8 @@ func (h *WebhookHandler) handleDeleteCommand(ctx context.Context, num int, userI
 	// 削除対象のメッセージ
 	targetMessage := messages[index]
 
-	// 削除実行
-	err = h.queries.DeleteMessage(ctx, db.DeleteMessageParams{
-		ID:     targetMessage.ID,
-		UserID: userID,
-	})
+	// 削除実行（usecase経由）
+	err = h.usecase.DeleteMessage(ctx, targetMessage.ID, userID)
 	if err != nil {
 		log.Printf("削除エラー: %v", err)
 		h.replyError(replyToken, "削除に失敗しました")
